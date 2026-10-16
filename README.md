@@ -103,10 +103,12 @@ A Sessão 02 é a atividade da proposta: localizar quando a vibração começou,
 ## Painéis recolhíveis (desktop e celular)
 
 Uma doca de abas embaixo abre e recolhe os painéis **Peças**, **Medições** e **Controles** (painel do modo atual).
-Cada painel tem **×** no cabeçalho, e a vista 3D se desloca para o torno ficar no centro da área livre.
+Ao carregar a aplicação os três começam recolhidos, deixando a vista 3D livre; abrir uma medição (rótulo 3D, sensor
+ou `?grandeza=`) abre as Medições sozinha. Cada painel tem **×** no cabeçalho, e a vista 3D se desloca para o torno
+ficar no centro da área livre.
 
-- **Desktop:** os três painéis começam abertos, como antes, e podem ficar abertos juntos. Recolhem para as
-  laterais e para baixo pelo ×, pela aba da doca ou com **Esc** (o último aberto).
+- **Desktop:** os painéis podem ficar abertos juntos. Recolhem para as laterais e para baixo pelo ×, pela aba da
+  doca ou com **Esc** (o último aberto).
 - **Celular (até 900 px):** topo compacto (título, conexão e os quatro modos); os painéis viram folhas que sobem
   da base, uma por vez, e recolhem pelo ×, tocando de novo na aba, arrastando o cabeçalho para baixo ou com o
   **Voltar** do aparelho. Configurações e a resposta do desafio abrem em tela cheia, com × e botões fixos no rodapé.

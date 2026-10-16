@@ -7,7 +7,7 @@ const CONSULTA_CELULAR = "(max-width: 900px)";
  * Painéis recolhíveis (só interface; não muda a lógica do app).
  *
  * Doca de abas com Peças, Medições e Controles do modo atual. Cada painel tem cabeçalho com ×.
- * - Desktop: os painéis ficam nas laterais e embaixo e podem ficar abertos juntos; começam abertos.
+ * - Desktop: os painéis ficam nas laterais e embaixo e podem ficar abertos juntos; começam recolhidos.
  *   Esc recolhe o último aberto.
  * - Celular: os painéis viram folhas que sobem da base, uma por vez; recolhem pelo ×, pela aba,
  *   arrastando o cabeçalho para baixo ou com o Voltar do aparelho.
@@ -252,11 +252,11 @@ export function criarLayoutPaineis({ camera = null, scene = null } = {}) {
   }
 
   // ---------- trocar entre desktop e celular (girar tablet, redimensionar janela)
+  // Os painéis começam recolhidos nos dois casos, deixando a vista 3D livre; a doca de abas os abre.
   function aplicarModo() {
     for (const f of folhas) f.el.style.transform = "";
     ordem = [];
-    if (celular()) recolherTodas();
-    else mostrarTodas();
+    recolherTodas();
   }
   mq.addEventListener("change", aplicarModo);
   aplicarModo();
