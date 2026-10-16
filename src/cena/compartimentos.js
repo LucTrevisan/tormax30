@@ -5,14 +5,19 @@ import { desenharIcone, svgIcone } from "../util/icones.js";
 import { textoValor } from "../ui/sensoresUI.js";
 import { criarEmissor } from "../util/emissor.js";
 
-// Compartimentos com sensores: o sensor de corrente fica no painel elétrico (pedestal do lado do cabeçote);
+// Compartimentos com sensores: o sensor de corrente fica no painel elétrico (traseira do gabinete do cabeçote);
 // temperatura, vibração, nível de óleo e rotação ficam na caixa lateral de engrenagens do cabeçote.
 // As tampas são as do próprio torno.glb, giradas em dobradiças em tempo de execução (o arquivo não muda).
 // Coordenadas em metros, como no torno.glb; `dobradica` = eixo vertical (x, z); `sensores[].pos` = (z, y)
-// na face aberta e `etiqueta` = deslocamento (z, y) da etiqueta; `angulo` em graus (negativo abre para fora, -X).
+// na face aberta e `etiqueta` = deslocamento (z, y) da etiqueta; `angulo` em graus (negativo abre para -X,
+// positivo para -Z). `giro` monta o interior girado em Y (face traseira: x local = z do mundo, z local = -x do
+// mundo); `vista` = câmera do botão Sensores, que vai ao compartimento do lado em que a câmera já está.
 // Olhando a lateral do cabeçote, -Z fica à esquerda (lado das dobradiças) e +Z à direita (lado do operador).
-// O interior da caixa segue a foto da máquina real: polia laranja em cima à esquerda com o sensor de rotação
-// logo abaixo, ponta do eixo-árvore em cima ao centro, trem de engrenagens à direita e placa guardada embaixo.
+// Os interiores estão modelados no torno.glb, seguindo as fotos da máquina real: na caixa de engrenagens, a
+// fundição com o ressalto do eixo-árvore, polia laranja em cima à esquerda (sensor de rotação logo abaixo),
+// lira com o trem de engrenagens à direita, placa guardada embaixo e o reservatório do sensor de nível; no
+// painel elétrico, placa de montagem, disjuntores, contatores, borneira, canaletas e fiação. Aqui eles só
+// ganham os sensores (montados na face do ressalto e no cabo do motor).
 export const COMPARTIMENTOS = [
   {
     id: "caixaEngrenagens",
@@ -21,13 +26,12 @@ export const COMPARTIMENTOS = [
     tampa: /^(Porta_lateral_cabecote|Fecho_lateral)/,
     dobradica: [-1.4205, -0.2495], // as dobradiças do modelo (Dobradica_porta)
     angulo: -105,
-    face: -1.4015, // logo à frente da face do cabeçote (x = -1,400)
-    abertura: { z: [-0.29, 0.29], y: [0.71, 1.31] },
-    fundo: desenharEngrenagens,
+    face: -1.335, // face do ressalto do eixo-árvore, dentro da janela do cabeçote (x = -1,400)
     porta: desenharDocumento, // folha de manutenção no lado de dentro da tampa
+    vista: { alvo: [-1.42, 1.0, 0], alfa: Math.PI - 0.5, beta: 1.3, raio: 2.0 },
     sensores: [
       { grandeza: "temperatura", tipo: "termometro", pos: [0.045, 1.215], etiqueta: [0.1, 0.075] },
-      { grandeza: "vibracao", tipo: "acelerometro", pos: [-0.055, 1.235], etiqueta: [-0.1, 0.08] },
+      { grandeza: "vibracao", tipo: "acelerometro", pos: [-0.055, 1.215], etiqueta: [-0.1, 0.08] },
       { grandeza: "rotacao", tipo: "indutivo", pos: [-0.2, 1.03], etiqueta: [0.02, -0.12] },
       { grandeza: "oleo", tipo: "nivel", pos: [0.215, 0.8], etiqueta: [-0.04, 0.1] },
     ],
@@ -36,18 +40,15 @@ export const COMPARTIMENTOS = [
     id: "painelEletrico",
     nome: "Painel elétrico",
     componente: "base",
-    tampa: /^(Gabinete_motor_lateral|Veneziana_motor)/,
-    dobradica: [-1.403, -0.335], // borda traseira da tampa
-    angulo: -105,
-    face: -1.392, // entre a tampa e o pedestal (x = -1,390)
-    abertura: { z: [-0.32, 0.25], y: [0.1, 0.515] },
-    fundo: desenharPainelEletrico,
-    sensores: [{ grandeza: "corrente", tipo: "tc", pos: [0.12, 0.26], etiqueta: [0, 0.075] }],
+    tampa: /^Gabinete_motor_eletrico_porta/,
+    dobradica: [-1.395, -0.5], // borda da porta do lado do cabeçote, face externa
+    angulo: 105,
+    giro: -Math.PI / 2,
+    face: -0.385, // z do mundo, à frente da régua de bornes
+    vista: { alvo: [-1.07, 0.96, -0.46], alfa: -Math.PI / 2 + 0.35, beta: 1.33, raio: 1.75 },
+    sensores: [{ grandeza: "corrente", tipo: "tc", pos: [1.178, 0.825], etiqueta: [0, 0.075] }],
   },
 ];
-
-// Vista da câmera com as tampas abertas (lado do cabeçote, pela frente).
-const VISTA = { alvo: [-1.42, 0.72, 0], alfa: Math.PI - 0.5, beta: 1.3, raio: 2.3 };
 const LARGURA_ETIQUETA = 0.15; // m
 const ALTURA_ETIQUETA = 0.056;
 
@@ -227,10 +228,11 @@ export function criarCompartimentos({ scene, camera, selecao, tampas, fluxo, con
     for (const c of comps) c.alvo = v ? 1 : 0;
     if (v) atualizarSensores();
     if (focarCamera && scene.activeCamera === camera) {
-      // pelo caminho mais curto em volta do torno
-      const giro = VISTA.alfa - camera.alpha;
-      const alfa = camera.alpha + ((((giro + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
-      focar(new Vector3(...VISTA.alvo), VISTA.raio, { alfa, beta: VISTA.beta, duracao: 1100 });
+      // pelo caminho mais curto em volta do torno, até o compartimento do lado em que a câmera já está
+      const giroAte = (a) => ((((a - camera.alpha + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
+      const vista = comps.map((c) => c.vista).reduce((m, v) => (Math.abs(giroAte(v.alfa)) < Math.abs(giroAte(m.alfa)) ? v : m));
+      const alfa = camera.alpha + giroAte(vista.alfa);
+      focar(new Vector3(...vista.alvo), vista.raio, { alfa, beta: vista.beta, duracao: 1100 });
     }
     sincronizar();
   }
@@ -247,41 +249,10 @@ export function criarCompartimentos({ scene, camera, selecao, tampas, fluxo, con
   };
 }
 
-// ---------- interior: fundo desenhado, moldura e sensores
+// ---------- interior: sensores (o resto do interior está no torno.glb)
 function criarInterior(scene, c) {
   const raiz = new TransformNode(`interior_${c.id}`, scene);
-  const [z0, z1] = c.abertura.z;
-  const [y0, y1] = c.abertura.y;
-  const largura = z1 - z0;
-  const altura = y1 - y0;
-  const zc = (z0 + z1) / 2;
-  const yc = (y0 + y1) / 2;
-
-  // fundo (plano voltado para -X, para quem olha a lateral do cabeçote); z → x do canvas, y → y do canvas
-  const fundo = planoDesenhado(scene, `fundoInterior_${c.id}`, largura, altura, (ctx, w, h) =>
-    c.fundo(ctx, w, h, (z) => ((z - z0) / largura) * w, (y) => ((y1 - y) / altura) * h),
-  );
-  fundo.rotation.y = Math.PI / 2;
-  fundo.position.set(c.face, yc, zc);
-
-  // moldura: espessura da carcaça em volta da abertura (rasa, para não atravessar a tampa fechada)
-  const matMoldura = cor(scene, "#4a525c");
-  const moldura = [
-    [0.012, 0.014, largura + 0.028, yc + altura / 2 + 0.007, zc],
-    [0.012, 0.014, largura + 0.028, yc - altura / 2 - 0.007, zc],
-    [0.012, altura, 0.014, yc, z0 - 0.007],
-    [0.012, altura, 0.014, yc, z1 + 0.007],
-  ].map(([w, h, d, y, z]) => {
-    const b = MeshBuilder.CreateBox("molduraInterior", { width: w, height: h, depth: d }, scene);
-    b.position.set(c.face - w / 2, y, z);
-    b.material = matMoldura;
-    return b;
-  });
-  for (const m of [fundo, ...moldura]) {
-    m.parent = raiz;
-    m.isPickable = false;
-  }
-
+  raiz.rotation.y = c.giro ?? 0; // compartimento na traseira: o interior é montado girado
   const sensoresRaiz = new TransformNode(`sensores_${c.id}`, scene);
   sensoresRaiz.parent = raiz;
   const sensores = c.sensores.map((s) => criarSensor(scene, sensoresRaiz, c, s));
@@ -479,140 +450,7 @@ function desenharEtiqueta(ctx, g, estado, tv) {
   desenharIcone(ctx, estado.icone, W - 16 - larguraEstado - 30, 76, 24, estado.cor, 2.6);
 }
 
-// ---------- fundos desenhados (z → x do canvas, y → y do canvas)
-function engrenagem(ctx, cx, cy, r, dentes, corpo, borda) {
-  const passo = (Math.PI * 2) / dentes;
-  ctx.beginPath();
-  for (let i = 0; i < dentes; i++) {
-    const a = i * passo;
-    for (const [da, rr] of [[0, r], [passo * 0.18, r * 1.09], [passo * 0.5, r * 1.09], [passo * 0.68, r]]) {
-      ctx.lineTo(cx + Math.cos(a + da) * rr, cy + Math.sin(a + da) * rr);
-    }
-  }
-  ctx.closePath();
-  ctx.fillStyle = corpo;
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = borda;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(0,0,0,0.35)";
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.22, 0, Math.PI * 2);
-  ctx.fillStyle = "#3a4048";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.09, 0, Math.PI * 2);
-  ctx.fillStyle = "#9aa0a6";
-  ctx.fill();
-}
-
-function circulo(ctx, cx, cy, r, preenchimento, borda = null, espessura = 2) {
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  if (preenchimento) {
-    ctx.fillStyle = preenchimento;
-    ctx.fill();
-  }
-  if (borda) {
-    ctx.strokeStyle = borda;
-    ctx.lineWidth = espessura;
-    ctx.stroke();
-  }
-}
-
-/** Placa de 4 castanhas guardada no fundo da caixa (como na foto da máquina). */
-function placaGuardada(ctx, cx, cy, r) {
-  circulo(ctx, cx, cy, r, "#8f969d", "#5d646b", 3);
-  circulo(ctx, cx, cy, r * 0.82, null, "rgba(0,0,0,0.25)", 2);
-  for (let i = 0; i < 4; i++) {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(Math.PI / 4 + (i * Math.PI) / 2);
-    ctx.fillStyle = "#3a4048";
-    ctx.fillRect(r * 0.2, -r * 0.07, r * 0.76, r * 0.14);
-    ctx.fillStyle = "#b4bac1";
-    ctx.fillRect(r * 0.42, -r * 0.11, r * 0.26, r * 0.22);
-    ctx.strokeStyle = "#4a525c";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(r * 0.42, -r * 0.11, r * 0.26, r * 0.22);
-    ctx.restore();
-  }
-  circulo(ctx, cx, cy, r * 0.18, "#2b2f35");
-}
-
-function desenharEngrenagens(ctx, w, h, pz, py) {
-  const r = (metros) => (metros * w) / 0.58; // metros → px
-  // carcaça azul-escura, mais escura nas bordas (profundidade)
-  const fundo = ctx.createLinearGradient(0, 0, w, h);
-  fundo.addColorStop(0, "#28395a");
-  fundo.addColorStop(1, "#17233a");
-  ctx.fillStyle = fundo;
-  ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = "rgba(0,0,0,0.45)";
-  ctx.lineWidth = 18;
-  ctx.strokeRect(0, 0, w, h);
-
-  placaGuardada(ctx, pz(-0.075), py(0.84), r(0.125));
-
-  // lira: braço que sustenta o trem de engrenagens
-  ctx.strokeStyle = "#b9bec4";
-  ctx.lineWidth = r(0.022);
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(pz(-0.01), py(1.12));
-  ctx.lineTo(pz(0.07), py(0.95));
-  ctx.lineTo(pz(0.17), py(0.87));
-  ctx.stroke();
-
-  // trem de engrenagens (à direita)
-  engrenagem(ctx, pz(0.125), py(1.085), r(0.03), 14, "#a3abb3", "#6b737c");
-  engrenagem(ctx, pz(0.185), py(1.09), r(0.042), 20, "#9ea6af", "#6b737c");
-  engrenagem(ctx, pz(0.245), py(1.06), r(0.024), 12, "#b0b7bf", "#6b737c");
-  engrenagem(ctx, pz(0.15), py(0.975), r(0.05), 24, "#a3abb3", "#6b737c");
-  engrenagem(ctx, pz(0.205), py(0.885), r(0.052), 26, "#9ea6af", "#6b737c");
-
-  // ponta do eixo-árvore (em cima, ao centro): mancal, tampa e alavanca
-  circulo(ctx, pz(0), py(1.17), r(0.05), "#5d6670", "#3a4048", 3);
-  circulo(ctx, pz(0), py(1.17), r(0.032), "#c9ced4", "#7c848d", 2);
-  circulo(ctx, pz(0), py(1.17), r(0.011), "#7c848d");
-  ctx.strokeStyle = "#c9ced4";
-  ctx.lineWidth = r(0.008);
-  ctx.beginPath();
-  ctx.moveTo(pz(0.03), py(1.18));
-  ctx.lineTo(pz(0.11), py(1.2));
-  ctx.stroke();
-  ctx.fillStyle = "#c9ced4";
-  ctx.fillRect(pz(0.105), py(1.215), r(0.02), r(0.03));
-
-  // polia laranja (em cima, à esquerda)
-  circulo(ctx, pz(-0.15), py(1.14), r(0.066), "#e2702a", "#8a3f12", 3);
-  circulo(ctx, pz(-0.15), py(1.14), r(0.05), null, "#9a4615", r(0.008));
-  circulo(ctx, pz(-0.15), py(1.14), r(0.022), "#c9ced4", "#7c848d", 2);
-  circulo(ctx, pz(-0.15), py(1.14), r(0.008), "#3a4048");
-
-  // reservatório de óleo com visor (embaixo, à direita)
-  const x0 = pz(0.15);
-  const x1 = pz(0.275);
-  ctx.fillStyle = "#e9ecef";
-  ctx.fillRect(x0, py(0.795), x1 - x0, py(0.715) - py(0.795));
-  ctx.fillStyle = "rgba(210,140,20,0.75)";
-  ctx.fillRect(x0 + 4, py(0.765), x1 - x0 - 8, py(0.72) - py(0.765));
-
-  // cabo azul do sensor de rotação descendo pela lateral
-  ctx.strokeStyle = "#2b7bd6";
-  ctx.lineWidth = r(0.008);
-  ctx.beginPath();
-  ctx.moveTo(pz(-0.2), py(0.93));
-  ctx.bezierCurveTo(pz(-0.27), py(0.82), pz(-0.27), py(0.74), pz(-0.12), py(0.73));
-  ctx.lineTo(pz(0.14), py(0.74));
-  ctx.stroke();
-}
-
+// ---------- desenho no lado de dentro da tampa (z → x do canvas, y → y do canvas)
 /** Folha de manutenção no lado de dentro da tampa (como na foto). */
 function desenharDocumento(ctx, w, h) {
   ctx.fillStyle = "#4a525c";
@@ -637,56 +475,4 @@ function desenharDocumento(ctx, w, h) {
     ctx.lineTo(x, h - 30);
     ctx.stroke();
   }
-}
-
-function desenharPainelEletrico(ctx, w, h, pz, py) {
-  ctx.fillStyle = "#d8d3c6"; // placa de montagem
-  ctx.fillRect(0, 0, w, h);
-  // canaletas
-  ctx.fillStyle = "#9aa1a8";
-  ctx.fillRect(10, 10, w - 20, 26);
-  ctx.fillRect(10, h - 40, w - 20, 26);
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
-  for (let x = 18; x < w - 20; x += 14) {
-    ctx.fillRect(x, 10, 5, 8);
-    ctx.fillRect(x, h - 22, 5, 8);
-  }
-  // trilho DIN com disjuntores
-  ctx.fillStyle = "#8d949b";
-  ctx.fillRect(14, 56, w * 0.62, 10);
-  for (let i = 0; i < 6; i++) {
-    const x = 24 + i * 40;
-    ctx.fillStyle = "#f4f4f2";
-    ctx.fillRect(x, 44, 34, 66);
-    ctx.fillStyle = "#2b2f35";
-    ctx.fillRect(x + 12, 58, 10, 16);
-    ctx.fillStyle = i < 3 ? "#1c7ed6" : "#d71920";
-    ctx.fillRect(x + 4, 96, 26, 6);
-  }
-  // contator e relé de sobrecarga
-  ctx.fillStyle = "#5c636b";
-  ctx.fillRect(28, 128, 96, 90);
-  ctx.fillStyle = "#3a4048";
-  ctx.fillRect(28, 218, 96, 34);
-  ctx.fillStyle = "#e9eef3";
-  ctx.font = "700 22px Segoe UI, Arial, sans-serif";
-  ctx.fillText("K1", 60, 178);
-  // fiação até a borneira e ao cabo do motor
-  ctx.lineWidth = 4;
-  for (const [i, cor] of ["#1a1d21", "#1a1d21", "#1a1d21", "#1c7ed6"].entries()) {
-    ctx.strokeStyle = cor;
-    ctx.beginPath();
-    ctx.moveTo(44 + i * 20, 252);
-    ctx.lineTo(44 + i * 20, 268);
-    ctx.lineTo(pz(0.12) - 6 + i * 4, 268);
-    ctx.lineTo(pz(0.12) - 6 + i * 4, h - 40);
-    ctx.stroke();
-  }
-  // borneira
-  for (let i = 0; i < 14; i++) {
-    ctx.fillStyle = i % 5 === 4 ? "#1c7ed6" : "#9aa1a8";
-    ctx.fillRect(160 + i * 16, 150, 13, 52);
-  }
-  ctx.fillStyle = "#8d949b";
-  ctx.fillRect(152, 170, 240, 8);
 }

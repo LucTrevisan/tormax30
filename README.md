@@ -135,9 +135,13 @@ abrir as medições.
   headset, aponte e faça a pinça ou aperte o gatilho, ou pegue a tampa de perto) e ela gira na dobradiça
   acompanhando o movimento; ao soltar, termina de abrir ou fechar no sentido em que vinha. Um clique ou toque na tampa
   abre ou fecha. O botão **Sensores** no topo (ou "Abrir tampas e ver sensores" no tour) abre as duas e leva a câmera
-  até elas. No painel fica o sensor de corrente; na caixa, temperatura, vibração, nível de óleo e rotação, cada um com
-  LED e etiqueta na cor do estado (clicar abre a medição). As tampas são as do `torno.glb`, giradas em tempo de
-  execução (o arquivo não muda). Posições e desenho do interior em `src/cena/compartimentos.js`.
+  até a do lado em que ela está: a caixa de engrenagens fica na lateral esquerda do cabeçote e o painel elétrico na
+  traseira do gabinete do cabeçote (porta com dobradiça do lado do cabeçote). No painel fica o sensor de corrente, no
+  cabo do motor; na caixa, temperatura, vibração, nível de óleo e rotação, cada um com LED e etiqueta na cor do estado
+  (clicar abre a medição). Tampas e interiores (fundição, polia, trem de engrenagens, placa guardada; disjuntores,
+  contatores, borneira, canaletas e fiação) estão no `torno.glb`, modelados a partir das fotos em `public/fotos/`; as
+  tampas giram em tempo de execução (o arquivo não muda). Posições dos sensores e das dobradiças em
+  `src/cena/compartimentos.js`.
 
 ## Ajustes finos pelo console
 
